@@ -19,7 +19,14 @@ from .ai_services import (
 )
 import google.generativeai as genai
 
-genai.configure(api_key=GEMINI_API_KEY)
+# تهيئة Gemini باستخدام المفتاح القادم من البيئة إن توفر
+try:
+    if GEMINI_API_KEY:
+        genai.configure(api_key=GEMINI_API_KEY)
+    else:
+        print("تحذير: GEMINI_API_KEY غير مضبوط في البيئة؛ بعض وظائف الذكاء قد تتعطل.")
+except Exception as e:
+    print(f"خطأ في تهيئة Gemini في views: {e}")
 
 # عدد النتائج في كل صفحة
 RESULTS_PER_PAGE = 5

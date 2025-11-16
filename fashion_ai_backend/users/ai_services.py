@@ -4,11 +4,25 @@ import json
 import cv2
 import numpy as np
 from serpapi import GoogleSearch
+import requests
+from django.conf import settings
 
-GEMINI_API_KEY = "AIzaSyA1xcMptfYKSHpaeadGpUm729DYyNu7e5w"
-SERPAPI_API_KEY = "97a8e4289031baed5d3d886e1466ee6d5eb23b1979bd321910dc19bed6e612ba"
+# قراءة مفاتيح Gemini و SerpApi من متغيرات البيئة (بدلاً من قيم صريحة)
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+SERPAPI_API_KEY = os.environ.get("SERPAPI_API_KEY")
 
-genai.configure(api_key=GEMINI_API_KEY)
+# مفاتيح Banana.dev يتم قراءتها من متغيرات البيئة
+BANANA_API_KEY = os.environ.get("BANANA_API_KEY")
+BANANA_MODEL_KEY = os.environ.get("BANANA_MODEL_KEY")
+
+# تهيئة Gemini إن كان المفتاح متوفرًا
+if GEMINI_API_KEY:
+    try:
+        genai.configure(api_key=GEMINI_API_KEY)
+    except Exception as e:
+        print(f"خطأ في تهيئة Gemini: {e}")
+else:
+    print("تحذير: لم يتم العثور على GEMINI_API_KEY في البيئة.")
 
 def analyze_user_and_generate_prompts(user, location_info):
     """
@@ -59,20 +73,74 @@ def analyze_user_and_generate_prompts(user, location_info):
 
 def generate_image_from_prompt(prompt):
     """
-    يستخدم نموذج توليد الصور من جوجل لإنشاء صورة من وصف نصي.
+    يولد صورة فعلية للوصف النصي باستخدام Banana.dev إذا توفرت المفاتيح،
+    وإلا يعود لصورة بديلة.
     """
-    print(f"محاكاة توليد صورة للوصف: {prompt}")
-    
-    placeholder_image_dir = "/home/ubuntu/fashion_ai_backend/media/generated_images/"
-    os.makedirs(placeholder_image_dir, exist_ok=True)
-    placeholder_image_path = os.path.join(placeholder_image_dir, f"generated_image_{hash(prompt)}.jpg")
+    print(f"توليد صورة للوصف عبر Banana.dev إن أمكن: {prompt}")
 
-    if not os.path.exists(placeholder_image_path):
+    output_dir = os.path.join(settings.MEDIA_ROOT, "generated_images")
+    os.makedirs(output_dir, exist_ok=True)
+    output_path = os.path.join(output_dir, f"generated_image_{abs(hash(prompt))}.jpg")
+
+    # إذا كانت مفاتيح Banana.dev متوفرة نحاول طلب التوليد
+    if BANANA_API_KEY and BANANA_MODEL_KEY:
+        try:
+            payload = {
+                "apikey": BANANA_API_KEY,
+                "modelKey": BANANA_MODEL_KEY,
+                "modelInputs": {"prompt": prompt},
+                # بعض النماذج قد تحتاج مفاتيح إضافية مثل الحجم أو الخطوات
+                "startOnly": False,
+            }
+            resp = requests.post("https://api.banana.dev/v4/", json=payload, timeout=60)
+            resp.raise_for_status()
+            data = resp.json()
+
+            # نحاول استخراج الصورة سواء كانت base64 أو رابط
+            outputs = data.get("modelOutputs") or data.get("output") or {}
+            image_b64 = None
+            image_url = None
+            if isinstance(outputs, list) and len(outputs) > 0:
+                first = outputs[0]
+                image_b64 = first.get("image_base64") or first.get("base64")
+                image_url = first.get("image_url") or first.get("url")
+            elif isinstance(outputs, dict):
+                image_b64 = outputs.get("image_base64") or outputs.get("base64")
+                image_url = outputs.get("image_url") or outputs.get("url")
+
+            saved = False
+            if image_b64:
+                import base64
+                try:
+                    with open(output_path, "wb") as f:
+                        f.write(base64.b64decode(image_b64))
+                    saved = True
+                except Exception as e:
+                    print(f"خطأ في فك ترميز الصورة Base64: {e}")
+            elif image_url:
+                try:
+                    rimg = requests.get(image_url, timeout=60)
+                    rimg.raise_for_status()
+                    with open(output_path, "wb") as f:
+                        f.write(rimg.content)
+                    saved = True
+                except Exception as e:
+                    print(f"خطأ في تنزيل الصورة من الرابط: {e}")
+
+            if saved:
+                return output_path
+            else:
+                print("استجابة Banana لم تتضمن صورة قابلة للحفظ؛ سنستخدم صورة بديلة.")
+        except Exception as e:
+            print(f"خطأ في استدعاء Banana.dev: {e}")
+
+    # في حال عدم توفر Banana أو فشل الطلب، ننشئ صورة بديلة
+    if not os.path.exists(output_path):
         dummy_image = np.zeros((512, 512, 3), dtype=np.uint8)
         dummy_image.fill(200)
-        cv2.imwrite(placeholder_image_path, dummy_image)
+        cv2.imwrite(output_path, dummy_image)
 
-    return placeholder_image_path
+    return output_path
 
 def search_products_by_image(image_url, user_location):
     """
