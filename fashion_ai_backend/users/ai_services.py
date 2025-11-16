@@ -1,3 +1,4 @@
+
 import google.generativeai as genai
 import os
 import json
@@ -6,6 +7,8 @@ import numpy as np
 from serpapi import GoogleSearch
 import requests
 from django.conf import settings
+import uuid
+import base64
 
 # قراءة مفاتيح Gemini و SerpApi من متغيرات البيئة (بدلاً من قيم صريحة)
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
@@ -28,7 +31,7 @@ def analyze_user_and_generate_prompts(user, location_info):
     """
     يحلل بيانات المستخدم وصورته الشخصية لتوليد أوصاف (prompts) دقيقة للملابس.
     """
-    model = genai.GenerativeModel(model_name="gemini-2.5-flash")
+    model = genai.GenerativeModel(model_name="gemini-1.5-flash")
 
     analysis_prompt = f"""
     تحليل شامل للمستخدم لتقديم توصيات أزياء:
@@ -71,7 +74,7 @@ def analyze_user_and_generate_prompts(user, location_info):
         print(f"خطأ في تحليل استجابة Gemini: {e}")
         return None
 
-def generate_image_from_prompt(prompt):
+def generate_image_from_prompt(prompt, request):
     """
     يولد صورة فعلية للوصف النصي باستخدام Banana.dev إذا توفرت المفاتيح،
     وإلا يعود لصورة بديلة.
@@ -80,23 +83,22 @@ def generate_image_from_prompt(prompt):
 
     output_dir = os.path.join(settings.MEDIA_ROOT, "generated_images")
     os.makedirs(output_dir, exist_ok=True)
-    output_path = os.path.join(output_dir, f"generated_image_{abs(hash(prompt))}.jpg")
+    image_filename = f"generated_image_{abs(hash(prompt))}_{uuid.uuid4().hex[:6]}.jpg"
+    output_path = os.path.join(output_dir, image_filename)
 
-    # إذا كانت مفاتيح Banana.dev متوفرة نحاول طلب التوليد
+    saved = False
     if BANANA_API_KEY and BANANA_MODEL_KEY:
         try:
             payload = {
                 "apikey": BANANA_API_KEY,
                 "modelKey": BANANA_MODEL_KEY,
                 "modelInputs": {"prompt": prompt},
-                # بعض النماذج قد تحتاج مفاتيح إضافية مثل الحجم أو الخطوات
                 "startOnly": False,
             }
             resp = requests.post("https://api.banana.dev/v4/", json=payload, timeout=60)
             resp.raise_for_status()
             data = resp.json()
 
-            # نحاول استخراج الصورة سواء كانت base64 أو رابط
             outputs = data.get("modelOutputs") or data.get("output") or {}
             image_b64 = None
             image_url = None
@@ -108,9 +110,7 @@ def generate_image_from_prompt(prompt):
                 image_b64 = outputs.get("image_base64") or outputs.get("base64")
                 image_url = outputs.get("image_url") or outputs.get("url")
 
-            saved = False
             if image_b64:
-                import base64
                 try:
                     with open(output_path, "wb") as f:
                         f.write(base64.b64decode(image_b64))
@@ -126,21 +126,21 @@ def generate_image_from_prompt(prompt):
                     saved = True
                 except Exception as e:
                     print(f"خطأ في تنزيل الصورة من الرابط: {e}")
+            
+            if not saved:
+                 print("استجابة Banana لم تتضمن صورة قابلة للحفظ؛ سنستخدم صورة بديلة.")
 
-            if saved:
-                return output_path
-            else:
-                print("استجابة Banana لم تتضمن صورة قابلة للحفظ؛ سنستخدم صورة بديلة.")
         except Exception as e:
             print(f"خطأ في استدعاء Banana.dev: {e}")
 
-    # في حال عدم توفر Banana أو فشل الطلب، ننشئ صورة بديلة
-    if not os.path.exists(output_path):
+    if not saved:
         dummy_image = np.zeros((512, 512, 3), dtype=np.uint8)
         dummy_image.fill(200)
         cv2.imwrite(output_path, dummy_image)
 
-    return output_path
+    relative_path = os.path.join("generated_images", image_filename)
+    public_url = request.build_absolute_uri(settings.MEDIA_URL + relative_path)
+    return public_url
 
 def search_products_by_image(image_url, user_location):
     """
@@ -189,7 +189,7 @@ def analyze_user_and_generate_advanced_prompts(user, location_info, search_filte
     """
     يحلل بيانات المستخدم، موقعه، وفلاتر البحث لتوليد أوصاف (prompts) دقيقة للملابس.
     """
-    model = genai.GenerativeModel(model_name="gemini-2.5-flash")
+    model = genai.GenerativeModel(model_name="gemini-1.5-flash")
 
     filter_description = ", ".join([f"{k}: {v}" for k, v in search_filters.items()])
 
@@ -236,4 +236,3 @@ def analyze_user_and_generate_advanced_prompts(user, location_info, search_filte
     except Exception as e:
         print(f"خطأ في تحليل استجابة Gemini للبحث المتقدم: {e}")
         return None
-

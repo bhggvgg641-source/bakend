@@ -103,10 +103,10 @@ class GetAIRecommendationsView(generics.GenericAPIView):
         all_recommendations = []
 
         for prompt in prompts:
-            generated_image_path = generate_image_from_prompt(prompt)
-            public_image_url_for_serpapi = request.build_absolute_uri(os.path.join("media/generated_images/", os.path.basename(generated_image_path)))
+           generated_image_url = generate_image_from_prompt(prompt, request)
+            public_image_url_for_serpapi = generated_image_url
 
-            shopping_results = search_products_by_image(public_image_url_for_serpapi, location_info)
+            shopping_results = search_products_by_image(generated_image_url, location_info)
 
             if shopping_results:
                 format_prompt = f"""
@@ -206,10 +206,10 @@ class AdvancedSearchView(generics.GenericAPIView):
         all_recommendations = []
 
         for prompt in prompts:
-            generated_image_path = generate_image_from_prompt(prompt)
-            public_image_url_for_serpapi = request.build_absolute_uri(os.path.join("media/generated_images/", os.path.basename(generated_image_path)))
+            generated_image_url = generate_image_from_prompt(prompt, request)
+            public_image_url_for_serpapi = generated_image_url
 
-            shopping_results = search_products_by_image(public_image_url_for_serpapi, location_info)
+            shopping_results = search_products_by_image(generated_image_url, location_info)
 
             if shopping_results:
                 format_prompt = f"""
