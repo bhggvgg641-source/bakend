@@ -79,7 +79,7 @@ def generate_image_from_prompt(prompt, request):
     يولد صورة فعلية للوصف النصي باستخدام Banana.dev إذا توفرت المفاتيح،
     وإلا يعود لصورة بديلة.
     """
-    print(f"توليد صورة للوصف عبر Banana.dev إن أمكن: {prompt}")
+    print(f"توليد صورة للوصف عبر Gemini API: {prompt}")
 
     output_dir = os.path.join(settings.MEDIA_ROOT, "generated_images")
     os.makedirs(output_dir, exist_ok=True)
@@ -87,57 +87,30 @@ def generate_image_from_prompt(prompt, request):
     output_path = os.path.join(output_dir, image_filename)
 
     saved = False
-    if BANANA_API_KEY and BANANA_MODEL_KEY:
-        try:
-            payload = {
-                "apikey": BANANA_API_KEY,
-                "modelKey": BANANA_MODEL_KEY,
-                "modelInputs": {"prompt": prompt},
-                "startOnly": False,
-            }
-            resp = requests.post("https://api.banana.dev/v4/", json=payload, timeout=60)
-            resp.raise_for_status()
-            data = resp.json()
+    try:
+        # 1. استخدام Gemini API لتوليد الصورة
+        image_model = genai.GenerativeModel(model_name="gemini-1.5-flash-image")
+        response = image_model.generate_content(prompt)
 
-            outputs = data.get("modelOutputs") or data.get("output") or {}
-            image_b64 = None
-            image_url = None
-            if isinstance(outputs, list) and len(outputs) > 0:
-                first = outputs[0]
-                image_b64 = first.get("image_base64") or first.get("base64")
-                image_url = first.get("image_url") or first.get("url")
-            elif isinstance(outputs, dict):
-                image_b64 = outputs.get("image_base64") or outputs.get("base64")
-                image_url = outputs.get("image_url") or outputs.get("url")
+        # 2. حفظ الصورة محليًا
+        if response.images:
+            image = response.images[0]
+            image.save(output_path)
+            saved = True
+        else:
+            print("لم يتم توليد صورة من Gemini.")
 
-            if image_b64:
-                try:
-                    with open(output_path, "wb") as f:
-                        f.write(base64.b64decode(image_b64))
-                    saved = True
-                except Exception as e:
-                    print(f"خطأ في فك ترميز الصورة Base64: {e}")
-            elif image_url:
-                try:
-                    rimg = requests.get(image_url, timeout=60)
-                    rimg.raise_for_status()
-                    with open(output_path, "wb") as f:
-                        f.write(rimg.content)
-                    saved = True
-                except Exception as e:
-                    print(f"خطأ في تنزيل الصورة من الرابط: {e}")
-            
-            if not saved:
-                 print("استجابة Banana لم تتضمن صورة قابلة للحفظ؛ سنستخدم صورة بديلة.")
+    except Exception as e:
+        print(f"خطأ في استدعاء Gemini لتوليد الصورة: {e}")
 
-        except Exception as e:
-            print(f"خطأ في استدعاء Banana.dev: {e}")
-
+    # 3. إذا فشل التوليد، نستخدم صورة بديلة (Dummy Image)
     if not saved:
+        print("فشل توليد الصورة، سيتم استخدام صورة بديلة.")
         dummy_image = np.zeros((512, 512, 3), dtype=np.uint8)
         dummy_image.fill(200)
         cv2.imwrite(output_path, dummy_image)
 
+    # 4. بناء وإرجاع الرابط العام
     relative_path = os.path.join("generated_images", image_filename)
     public_url = request.build_absolute_uri(settings.MEDIA_URL + relative_path)
     return public_url

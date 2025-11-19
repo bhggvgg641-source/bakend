@@ -103,9 +103,8 @@ class GetAIRecommendationsView(generics.GenericAPIView):
         all_recommendations = []
 
         for prompt in prompts:
-           generated_image_url = generate_image_from_prompt(prompt, request)
-            public_image_url_for_serpapi = generated_image_url
-
+            generated_image_url = generate_image_from_prompt(prompt, request)
+            # generated_image_url هو الآن الرابط العام الذي يمكن لـ SerpAPI الوصول إليه
             shopping_results = search_products_by_image(generated_image_url, location_info)
 
             if shopping_results:
@@ -207,8 +206,7 @@ class AdvancedSearchView(generics.GenericAPIView):
 
         for prompt in prompts:
             generated_image_url = generate_image_from_prompt(prompt, request)
-            public_image_url_for_serpapi = generated_image_url
-
+            # generated_image_url هو الآن الرابط العام الذي يمكن لـ SerpAPI الوصول إليه
             shopping_results = search_products_by_image(generated_image_url, location_info)
 
             if shopping_results:
