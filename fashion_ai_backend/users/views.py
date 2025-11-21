@@ -75,6 +75,18 @@ class AnalyzeProfilePictureView(generics.GenericAPIView):
         return Response(analysis_results, status=status.HTTP_200_OK)
 
 class GetAIRecommendationsView(generics.GenericAPIView):
+    def get(self, request, *args, **kwargs):
+        user_id = request.query_params.get("user_id")
+        page = int(request.query_params.get("page", 1))
+
+        cached_data = get_cached_recommendations(user_id, page)
+        if cached_data:
+            return Response(cached_data, status=status.HTTP_200_OK)
+        
+        # إذا لم يكن هناك بيانات مخزنة مؤقتًا، يمكننا إعادة توجيه الطلب إلى post() لإنشاء البيانات
+        # ولكن لتجنب التعقيد، سنعيد رسالة خطأ أو سنسمح للواجهة الأمامية بإرسال POST إذا لم تجد بيانات
+        return Response({"error": "No cached recommendations found. Please trigger generation via POST request."}, status=status.HTTP_404_NOT_FOUND)
+
     def post(self, request, *args, **kwargs):
         user_id = request.data.get("user_id")
         location_info = request.data.get("location", "Not provided")
