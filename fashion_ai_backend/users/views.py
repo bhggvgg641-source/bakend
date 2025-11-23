@@ -115,11 +115,13 @@ class GetAIRecommendationsView(generics.GenericAPIView):
         all_recommendations = []
 
         for prompt in prompts:
-            generated_image_url = generate_image_from_prompt(prompt, request)
-            # generated_image_url هو الآن الرابط العام الذي يمكن لـ SerpAPI الوصول إليه
-            shopping_results = search_products_by_image(generated_image_url, location_info)
+            generated_image_urls = generate_image_from_prompt(prompt, request, count=3) # توليد 3 صور لكل وصف
+            
+            for generated_image_url in generated_image_urls:
+                # generated_image_url هو الآن الرابط العام الذي يمكن لـ SerpAPI الوصول إليه
+                shopping_results = search_products_by_image(generated_image_url, location_info)
 
-            if shopping_results:
+                if shopping_results:
                 format_prompt = f"""
                 بناءً على تحليل المستخدم التالي: {user_analysis_text}
                 وهذه قائمة بمنتجات التسوق التي تم العثور عليها: {json.dumps(shopping_results, ensure_ascii=False)}
@@ -217,11 +219,13 @@ class AdvancedSearchView(generics.GenericAPIView):
         all_recommendations = []
 
         for prompt in prompts:
-            generated_image_url = generate_image_from_prompt(prompt, request)
-            # generated_image_url هو الآن الرابط العام الذي يمكن لـ SerpAPI الوصول إليه
-            shopping_results = search_products_by_image(generated_image_url, location_info)
+            generated_image_urls = generate_image_from_prompt(prompt, request, count=3) # توليد 3 صور لكل وصف
+            
+            for generated_image_url in generated_image_urls:
+                # generated_image_url هو الآن الرابط العام الذي يمكن لـ SerpAPI الوصول إليه
+                shopping_results = search_products_by_image(generated_image_url, location_info)
 
-            if shopping_results:
+                if shopping_results:
                 format_prompt = f"""
                 بناءً على تحليل المستخدم التالي: {user_analysis_text}
                 وفلاتر البحث المحددة: {json.dumps(search_filters, ensure_ascii=False)}

@@ -74,7 +74,7 @@ def analyze_user_and_generate_prompts(user, location_info):
         print(f"خطأ في تحليل استجابة Gemini: {e}")
         return None
 
-def generate_image_from_prompt(prompt, request):
+def generate_image_from_prompt(prompt, request, count=1):
     """
     يولد صورة فعلية للوصف النصي باستخدام Banana.dev إذا توفرت المفاتيح،
     وإلا يعود لصورة بديلة.
@@ -90,15 +90,29 @@ def generate_image_from_prompt(prompt, request):
     try:
         # 1. استخدام Gemini API لتوليد الصورة
         image_model = genai.GenerativeModel(model_name="gemini-1.5-flash-image")
-        response = image_model.generate_content(prompt)
+        
+        image_urls = []
+        
+        for i in range(count):
+            response = image_model.generate_content(prompt)
+            
+            # 2. حفظ الصورة محليًا
+            if response.images:
+                image = response.images[0]
+                
+                # إنشاء اسم ملف فريد لكل صورة
+                image_filename = f"generated_image_{abs(hash(prompt))}_{uuid.uuid4().hex[:6]}_{i}.jpg"
+                output_path = os.path.join(output_dir, image_filename)
+                
+                image.save(output_path)
+                
+                relative_path = os.path.join("generated_images", image_filename)
+                public_url = request.build_absolute_uri(settings.MEDIA_URL + relative_path)
+                image_urls.append(public_url)
+            else:
+                print(f"لم يتم توليد صورة {i+1} من Gemini.")
 
-        # 2. حفظ الصورة محليًا
-        if response.images:
-            image = response.images[0]
-            image.save(output_path)
-            saved = True
-        else:
-            print("لم يتم توليد صورة من Gemini.")
+        return image_urls
 
     except Exception as e:
         print(f"خطأ في استدعاء Gemini لتوليد الصورة: {e}")
@@ -113,7 +127,7 @@ def generate_image_from_prompt(prompt, request):
     # 4. بناء وإرجاع الرابط العام
     relative_path = os.path.join("generated_images", image_filename)
     public_url = request.build_absolute_uri(settings.MEDIA_URL + relative_path)
-    return public_url
+    return [public_url] # إرجاع قائمة حتى لو كانت صورة واحدة
 
 def search_products_by_image(image_url, user_location):
     """
