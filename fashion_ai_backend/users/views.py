@@ -122,7 +122,7 @@ class GetAIRecommendationsView(generics.GenericAPIView):
                 shopping_results = search_products_by_image(generated_image_url, location_info)
 
                 if shopping_results:
-                format_prompt = f"""
+                    format_prompt = f"""
                 بناءً على تحليل المستخدم التالي: {user_analysis_text}
                 وهذه قائمة بمنتجات التسوق التي تم العثور عليها: {json.dumps(shopping_results, ensure_ascii=False)}
                 
@@ -226,7 +226,7 @@ class AdvancedSearchView(generics.GenericAPIView):
                 shopping_results = search_products_by_image(generated_image_url, location_info)
 
                 if shopping_results:
-                format_prompt = f"""
+                    format_prompt = f"""
                 بناءً على تحليل المستخدم التالي: {user_analysis_text}
                 وفلاتر البحث المحددة: {json.dumps(search_filters, ensure_ascii=False)}
                 وهذه قائمة بمنتجات التسوق التي تم العثور عليها: {json.dumps(shopping_results, ensure_ascii=False)}

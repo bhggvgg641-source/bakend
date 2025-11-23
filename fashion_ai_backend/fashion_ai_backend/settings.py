@@ -138,6 +138,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 # إعدادات CORS للسماح بالطلبات من الواجهة الأمامية
 CORS_ALLOWED_ORIGINS = [
+    "https://jocular-syrniki-e43442.netlify.app", # رابط الواجهة الأمامية الجديد
     "http://localhost:5173",  # عنوان Vite الافتراضي
     "http://localhost:3000",  # عنوان React الافتراضي
 ]
