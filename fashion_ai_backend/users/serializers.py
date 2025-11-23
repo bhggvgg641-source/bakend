@@ -8,7 +8,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         model = CustomUser
         fields = (
             'username', 'email', 'password', 'height', 'weight', 'skin_color', 'profile_picture',
-            'age', 'gender', 'body_type', 'style_preference', 'budget'
+            'age', 'gender', 'body_type', 'style_preference', 'budget', 'phone'
         )
 
     def create(self, validated_data):
@@ -24,7 +24,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             gender=validated_data.get('gender'),
             body_type=validated_data.get('body_type'),
             style_preference=validated_data.get('style_preference'),
-            budget=validated_data.get('budget')
+            budget=validated_data.get('budget'),
+            phone=validated_data.get('phone')
         )
         return user
 

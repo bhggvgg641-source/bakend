@@ -11,6 +11,7 @@ class CustomUser(AbstractUser):
     style_preference = models.CharField(max_length=50, null=True, blank=True)
     budget = models.CharField(max_length=50, null=True, blank=True)
     profile_picture = models.ImageField(upload_to=r'profile_pics/', null=True, blank=True)
+    phone = models.CharField(max_length=20, null=True, blank=True)
 
 
     def __str__(self):
